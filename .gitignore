@@ -3,3 +3,4 @@
 ID_*
 *.xls
 /resources/
+__pycache__/
