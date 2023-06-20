@@ -48,3 +48,35 @@ def power_curve_from_parameters(Pnom, Drotor, wind_speed_resolution=0.5, **kwarg
         return out_da
     
     return power_conversion_function
+
+def power_curve_from_parameters_2(Pnom, Drotor, wind_speed_resolution=0.5, **kwargs):
+    wind_speeds = np.arange(0, 30 + wind_speed_resolution, wind_speed_resolution)
+    wind_speeds_buckets = np.unique(
+        np.concatenate((wind_speeds - wind_speed_resolution / 2, wind_speeds + wind_speed_resolution / 2))
+    )
+    power_output = GWTPC.GenericWindTurbinePowerCurve(
+        wind_speeds,
+        Pnom,
+        Drotor,
+        **kwargs)
+    
+    power_output_da = xr.DataArray(
+        power_output, dims=["wind_speed"])
+    
+    def power_conversion_function(wind_speed):
+
+        assert isinstance(wind_speed, xr.DataArray)
+
+        bucketized_wind_speed = xr.apply_ufunc(
+            np.digitize, wind_speed, wind_speeds_buckets,
+        )
+        bucketized_wind_speed = bucketized_wind_speed - 1
+        bucketized_wind_speed = bucketized_wind_speed.where(bucketized_wind_speed < len(wind_speeds), len(wind_speeds) - 1)
+        out_da = power_output_da[bucketized_wind_speed]
+
+        out_da.name = "power"
+        out_da.attrs["units"] = "kW"
+        out_da.attrs["long_name"] = "Power"
+        return out_da
+    
+    return power_conversion_function
